@@ -128,6 +128,81 @@ module countersunk_screw_threaded(d = 3, l = 10, dk = 6.72, k = 1.86, key = 2, p
     }
 }
 
+// Button head socket screw, ISO 7380. Dome approximated by a half ellipsoid.
+module button_head_screw(d = 3, l = 10, dk = 5.7, k = 1.65, key = 2) {
+    difference() {
+        union() {
+            intersection() {
+                scale([1, 1, k / (dk / 2)]) {
+                    sphere(r=dk / 2);
+                }
+                translate([0, 0, k]) {
+                    cube([dk + 2, dk + 2, k * 2], center=true);
+                }
+            }
+            translate([0, 0, -l]) {
+                cylinder(h=l, r=d / 2);
+            }
+        }
+        translate([0, 0, k * 0.4]) {
+            hw_hex_prism(s = key, h = k);
+        }
+    }
+}
+
+module button_head_screw_threaded(d = 3, l = 10, dk = 5.7, k = 1.65, key = 2, pitch = 0.5) {
+    difference() {
+        union() {
+            intersection() {
+                scale([1, 1, k / (dk / 2)]) {
+                    sphere(r=dk / 2);
+                }
+                translate([0, 0, k]) {
+                    cube([dk + 2, dk + 2, k * 2], center=true);
+                }
+            }
+            translate([0, 0, -l]) {
+                linear_extrude(height=l, twist=-360 * l / pitch, slices=ceil(l / pitch * 10)) {
+                    translate([pitch * 0.3, 0, 0]) {
+                        circle(r=d / 2 - pitch * 0.3);
+                    }
+                }
+            }
+        }
+        translate([0, 0, k * 0.4]) {
+            hw_hex_prism(s = key, h = k);
+        }
+    }
+}
+
+// Set screw (grub screw) with hex socket and flat point, ISO 4026.
+// Top face at z = 0, body down to z = -l.
+module set_screw(d = 3, l = 6, key = 1.5) {
+    difference() {
+        translate([0, 0, -l]) {
+            cylinder(h=l, r=d / 2);
+        }
+        translate([0, 0, -min(l * 0.6, key * 1.5)]) {
+            hw_hex_prism(s = key, h = l);
+        }
+    }
+}
+
+module set_screw_threaded(d = 3, l = 6, key = 1.5, pitch = 0.5) {
+    difference() {
+        translate([0, 0, -l]) {
+            linear_extrude(height=l, twist=-360 * l / pitch, slices=ceil(l / pitch * 10)) {
+                translate([pitch * 0.3, 0, 0]) {
+                    circle(r=d / 2 - pitch * 0.3);
+                }
+            }
+        }
+        translate([0, 0, -min(l * 0.6, key * 1.5)]) {
+            hw_hex_prism(s = key, h = l);
+        }
+    }
+}
+
 // Threaded rod / stud from z = 0 to z = l.
 module threaded_rod(d = 3, l = 20) {
     cylinder(h=l, r=d / 2);

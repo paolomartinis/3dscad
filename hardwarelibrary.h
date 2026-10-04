@@ -33,6 +33,10 @@ struct MetricSize
     double insertD;        // heat-set insert pilot hole diameter (typical)
     double insertDepth;    // heat-set insert pilot hole depth (typical)
     double defaultLength;  // suggested screw length
+    double buttonDk;       // button head diameter (ISO 7380)
+    double buttonK;        // button head height (ISO 7380)
+    double buttonKey;      // button head hex key (ISO 7380)
+    double grubKey;        // set screw hex key (ISO 4026)
 };
 
 enum class LengthKind { None, ScrewLength, RodLength, HoleDepth };
