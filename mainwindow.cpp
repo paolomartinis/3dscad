@@ -4,6 +4,7 @@
 #include "codeeditorpanel.h"
 #include "csgevaluator.h"
 #include "examplebrowsermenu.h"
+#include "hardwarelibrary.h"
 #include "openscadgenerator.h"
 #include "scenetreegraphicshelpers.h"
 #include "scenetreegraphicswidget.h"
@@ -22,6 +23,7 @@
 #include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QInputDialog>
 #include <QLabel>
 #include <QMenu>
 #include <QMenuBar>
@@ -168,6 +170,9 @@ void MainWindow::buildUi()
     auto *editMenu = appMenuBar->addMenu("Edit");
     editMenu->addAction(m_controller->undoAction());
     editMenu->addAction(m_controller->redoAction());
+
+    auto *insertMenu = appMenuBar->addMenu("Insert");
+    buildHardwareMenu(insertMenu->addMenu("Hardware"));
 
     auto *settingsMenu = appMenuBar->addMenu("Settings");
     auto *themeMenu    = settingsMenu->addMenu("Theme");
@@ -689,6 +694,51 @@ void MainWindow::loadExample(const QString &filePath)
     m_currentFilePath.clear();
     m_controller->undoStack()->setClean();
     updateWindowTitle();
+}
+
+// ── Hardware ──────────────────────────────────────────────────────────────────
+
+// Insert > Hardware > <category> > <part> > <size>
+void MainWindow::buildHardwareMenu(QMenu *menu)
+{
+    QHash<QString, QMenu *> categoryMenus;
+    for (const HardwareLibrary::Part &part : HardwareLibrary::parts()) {
+        QMenu *&categoryMenu = categoryMenus[part.category];
+        if (!categoryMenu)
+            categoryMenu = menu->addMenu(part.category);
+        QMenu *partMenu = categoryMenu->addMenu(part.label);
+        for (const HardwareLibrary::MetricSize &size : HardwareLibrary::metricSizes()) {
+            connect(partMenu->addAction(size.name), &QAction::triggered, this, [this, part, size]() {
+                double length = 0.0;
+                if (part.lengthKind != HardwareLibrary::LengthKind::None) {
+                    const bool isHole = part.lengthKind == HardwareLibrary::LengthKind::HoleDepth;
+                    const double suggested = part.lengthKind == HardwareLibrary::LengthKind::RodLength
+                        ? size.defaultLength * 2 : size.defaultLength;
+                    bool ok = false;
+                    length = QInputDialog::getDouble(
+                        this, QString("%1 %2").arg(part.label, size.name),
+                        isHole ? "Hole depth (mm):" : "Length (mm):",
+                        suggested, 0.5, 1000.0, 1, &ok);
+                    if (!ok) return;
+                }
+                insertHardware(part.moduleName, HardwareLibrary::callFor(part, size, length));
+            });
+        }
+    }
+}
+
+void MainWindow::insertHardware(const QString &moduleName, const QString &call)
+{
+    const QString code = HardwareLibrary::insertPart(m_codeEditorPanel->code(), moduleName, call);
+    QString errorMsg;
+    int     errorLine = -1;
+    if (!m_controller->applyCode(code, &errorMsg, &errorLine)) {
+        QMessageBox::warning(this, "Insert Hardware",
+                             QString("Could not insert %1:\n%2 (line %3)")
+                                 .arg(moduleName, errorMsg).arg(errorLine));
+        return;
+    }
+    m_codeEditorPanel->clearParseError();
 }
 
 // ── File handling ─────────────────────────────────────────────────────────────

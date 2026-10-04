@@ -24,6 +24,7 @@ SOURCES += \
     themeeditordialog.cpp \
     examplepreviewpopup.cpp \
     groupthumbnailcache.cpp \
+    hardwarelibrary.cpp \
     main.cpp \
     nodethumbnailcache.cpp \
     mainwindow.cpp \
@@ -76,6 +77,7 @@ HEADERS += \
     themeeditordialog.h \
     examplepreviewpopup.h \
     groupthumbnailcache.h \
+    hardwarelibrary.h \
     scenecontroller.h \
     nodethumbnailcache.h \
     expression.h \
@@ -125,6 +127,9 @@ HEADERS += \
 
 FORMS += \
     mainwindow.ui
+
+RESOURCES += \
+    hardware/hardware.qrc
 
 win32:contains(QT_ARCH, x86_64) {
     MANIFOLD_BUILD_DIR = $$PWD/build/manifold-build-64

@@ -48,6 +48,8 @@ private slots:
 
 private:
     void buildUi();
+    void buildHardwareMenu(QMenu *menu);
+    void insertHardware(const QString &moduleName, const QString &call);
     bool loadScadIntoEditor(const QString &filePath, const QString &dialogTitle);
     bool writeScadFile(const QString &filePath);
     bool maybeSave();

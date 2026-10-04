@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/hardware">
+        <file>hardware.scad</file>
+    </qresource>
+</RCC>

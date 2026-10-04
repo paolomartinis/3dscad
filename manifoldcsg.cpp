@@ -382,9 +382,11 @@ static Manifold evaluateNode(const SceneDocument::TreeNode &node,
         if (polygons.empty())
             return {};
 
+        // OpenSCAD twists clockwise for positive angles (left-hand rule);
+        // Manifold twists counter-clockwise, so the sign is flipped.
         Manifold extruded = Manifold::Extrude(polygons, static_cast<double>(height),
                                               slices,
-                                              static_cast<double>(twist),
+                                              static_cast<double>(-twist),
                                               vec2(es, es));
         if (evaluatedNode.linearExtrudeCenter)
             extruded = extruded.Translate(vec3(0.0, 0.0, static_cast<double>(-height * 0.5f)));
