@@ -809,7 +809,7 @@ void SceneTreeGraphicsWidget::focusOutEvent(QFocusEvent *event)
 void SceneTreeGraphicsWidget::mousePressEvent(QMouseEvent *event)
 {
     setFocus();
-    m_lastMousePosition = event->pos();
+    m_lastMousePosition = event->position().toPoint();
 
     // Stop any ongoing pan / zoom inertia — scene must be stable for drags
     if (event->button() == Qt::LeftButton) {
@@ -819,13 +819,13 @@ void SceneTreeGraphicsWidget::mousePressEvent(QMouseEvent *event)
 
     // ── Color-edit mode: intercept left-clicks on card zones ─────────────────
     if (colorEditMode() && event->button() == Qt::LeftButton) {
-        const QPointF scenePos = mapToScene(event->pos());
+        const QPointF scenePos = mapToScene(event->position().toPoint());
         // Only toolbar items (theme swatches, the "✏ Colors" toggle button) are
         // allowed to handle their own clicks normally.  Everything else — tree
         // selection items, drag handles, node overlays — is suppressed so that
         // the color-edit click always fires, even when the user clicks on top of
         // an interactive card overlay.
-        const QGraphicsItem *hitItem = itemAt(event->pos());
+        const QGraphicsItem *hitItem = itemAt(event->position().toPoint());
         const bool isToolbarItem = hitItem
             && m_overlay->m_items.contains(const_cast<QGraphicsItem *>(hitItem));
         // Swatches and the toggle button handle their own clicks; everything else
@@ -843,7 +843,7 @@ void SceneTreeGraphicsWidget::mousePressEvent(QMouseEvent *event)
 
     // ── Table labels/buttons ────────────────────────────────
     if (!colorEditMode() && event->button() == Qt::LeftButton) {
-        const QPointF scenePos = mapToScene(event->pos());
+        const QPointF scenePos = mapToScene(event->position().toPoint());
         Polygon2DTableItem::Cell polygonCell;
         if (polygon2DTableControlAt(scenePos, &polygonCell)) {
             if (polygonCell.type == Polygon2DTableItem::Cell::PtLabel
@@ -961,7 +961,7 @@ void SceneTreeGraphicsWidget::mousePressEvent(QMouseEvent *event)
 
     // ── Center checkbox ───────────────────────────────────
     if (!colorEditMode() && event->button() == Qt::LeftButton) {
-        const QPointF scenePos = mapToScene(event->pos());
+        const QPointF scenePos = mapToScene(event->position().toPoint());
         for (const GroupHitArea &area : m_treeLayout.groupHitAreas()) {
             for (const ChildLayout &child : area.children) {
                 if (!child.rect.contains(scenePos)) continue;
@@ -981,7 +981,7 @@ void SceneTreeGraphicsWidget::mousePressEvent(QMouseEvent *event)
 
     // ── Canvas-move drag: check grip strip before anything else ──────────────
     if (!colorEditMode() && event->button() == Qt::LeftButton) {
-        const QPointF scenePos = mapToScene(event->pos());
+        const QPointF scenePos = mapToScene(event->position().toPoint());
         ExpressionEditTarget target;
         if (m_hoverManager->expressionEditTargetAt(scenePos, &target)) {
             m_inlineEditor->startInlineExpressionEdit(target);
@@ -995,7 +995,7 @@ void SceneTreeGraphicsWidget::mousePressEvent(QMouseEvent *event)
             return;
     }
 
-    if (event->button() == Qt::RightButton && itemAt(event->pos()) == nullptr) {
+    if (event->button() == Qt::RightButton && itemAt(event->position().toPoint()) == nullptr) {
         handleTreeNodeSelected(0);
         event->accept();
         return;
@@ -1005,16 +1005,16 @@ void SceneTreeGraphicsWidget::mousePressEvent(QMouseEvent *event)
     // itemAt() returns panel even with Qt::NoButton, so we check VP rects
     // directly — do NOT gate on itemAt == nullptr here.
     if (event->button() == Qt::LeftButton
-        && isOnToolbarBackground(QPointF(event->pos()))) {
+        && isOnToolbarBackground(QPointF(event->position().toPoint()))) {
         m_overlay->m_dragPending = true;
         m_overlay->m_dragActive  = false;
-        m_overlay->m_dragPressVp = event->pos();
+        m_overlay->m_dragPressVp = event->position().toPoint();
         event->accept();
         return;
     }
 
-    if (event->button() == Qt::LeftButton && itemAt(event->pos()) == nullptr) {
-        m_canvasController->startPan(event->pos());
+    if (event->button() == Qt::LeftButton && itemAt(event->position().toPoint()) == nullptr) {
+        m_canvasController->startPan(event->position().toPoint());
         const bool changed = m_hoverManager->m_hoveredScrollRect.isValid() || m_hoverManager->m_hoveredRenameRect.isValid()
                              || m_hoverManager->m_hoveredExpressionRect.isValid();
         m_hoverManager->m_hoveredScrollRect = QRectF();
@@ -1031,15 +1031,15 @@ void SceneTreeGraphicsWidget::mousePressEvent(QMouseEvent *event)
 
 void SceneTreeGraphicsWidget::mouseMoveEvent(QMouseEvent *event)
 {
-    m_lastMousePosition = event->pos();
+    m_lastMousePosition = event->position().toPoint();
     const bool controlDown = event->modifiers() & Qt::ControlModifier;
-    const QPointF scenePosition = mapToScene(event->pos());
+    const QPointF scenePosition = mapToScene(event->position().toPoint());
 
     // ── Toolbar drag ─────────────────────────────────────────────────────────
     if (m_overlay->m_dragPending || m_overlay->m_dragActive) {
         setHoveredVariableReferenceName(QString());
         if (m_overlay->m_dragPending) {
-            const int dist = (event->pos() - m_overlay->m_dragPressVp).manhattanLength();
+            const int dist = (event->position().toPoint() - m_overlay->m_dragPressVp).manhattanLength();
             if (dist >= 8) {
                 m_overlay->m_dragPending = false;
                 m_overlay->m_dragActive  = true;
@@ -1047,7 +1047,7 @@ void SceneTreeGraphicsWidget::mouseMoveEvent(QMouseEvent *event)
             }
         }
         if (m_overlay->m_dragActive) {
-            const int targetSide = toolbarSnapSideForVpPos(event->pos());
+            const int targetSide = toolbarSnapSideForVpPos(event->position().toPoint());
             if (targetSide != m_overlay->m_side) {
                 m_overlay->m_side = targetSide;
                 updateToolbarOverlay();
@@ -1070,7 +1070,7 @@ void SceneTreeGraphicsWidget::mouseMoveEvent(QMouseEvent *event)
     if (m_overlay->m_colorEditToggleItem) {
         const QPointF togVp = mapFromScene(m_overlay->m_colorEditToggleItem->pos());
         if (m_overlay->m_colorEditToggleItem->boundingRect().translated(togVp)
-                .contains(QPointF(event->pos()))) {
+                .contains(QPointF(event->position().toPoint()))) {
             setHoveredVariableReferenceName(QString());
             clearColorEditHighlight();                  // remove any stale blink overlay
             QGraphicsView::mouseMoveEvent(event);       // deliver hover enter/move to toggle
@@ -1090,7 +1090,7 @@ void SceneTreeGraphicsWidget::mouseMoveEvent(QMouseEvent *event)
     }
 
     // ── Normal flow ──────────────────────────────────────────────────────────
-    m_hoverManager->updateTooltip(event->globalPos(), scenePosition, controlDown);
+    m_hoverManager->updateTooltip(event->globalPosition().toPoint(), scenePosition, controlDown);
     m_hoverManager->updateActiveTransformControl(scenePosition, controlDown);
     m_hoverManager->updateActiveColorChannelControl(scenePosition, controlDown);
     m_hoverManager->updateActiveShapeParameterControl(scenePosition, controlDown);
@@ -1098,7 +1098,7 @@ void SceneTreeGraphicsWidget::mouseMoveEvent(QMouseEvent *event)
     m_hoverManager->updateActiveForLoopRangeControl(scenePosition, controlDown);
     m_hoverManager->updateActiveModuleCallParamControl(scenePosition, controlDown);
 
-    if (m_canvasController->updatePan(event->pos())) {
+    if (m_canvasController->updatePan(event->position().toPoint())) {
         setHoveredVariableReferenceName(QString());
         event->accept();
         return;
@@ -1115,7 +1115,7 @@ void SceneTreeGraphicsWidget::mouseReleaseEvent(QMouseEvent *event)
     if (event->button() == Qt::LeftButton
         && (m_overlay->m_dragActive || m_overlay->m_dragPending)) {
         if (m_overlay->m_dragActive) {
-            const int newSide = toolbarSnapSideForVpPos(event->pos());
+            const int newSide = toolbarSnapSideForVpPos(event->position().toPoint());
             if (newSide != m_overlay->m_side) {
                 m_overlay->m_side = newSide;
                 updateToolbarOverlay();
@@ -1144,7 +1144,7 @@ void SceneTreeGraphicsWidget::mouseReleaseEvent(QMouseEvent *event)
 void SceneTreeGraphicsWidget::mouseDoubleClickEvent(QMouseEvent *event)
 {
     if (event->button() == Qt::LeftButton) {
-        const QPointF scenePos = mapToScene(event->pos());
+        const QPointF scenePos = mapToScene(event->position().toPoint());
         int renameNodeId = 0;
         QRectF renameRect;
         if (m_hoverManager->hoverRenameZoneAt(scenePos, &renameNodeId, &renameRect)) {

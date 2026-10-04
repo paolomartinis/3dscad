@@ -11,7 +11,12 @@ $repoRoot = Split-Path -Parent $PSScriptRoot
 $manifoldSource = Join-Path $repoRoot "build\manifold-src"
 $manifoldBuild = Join-Path $repoRoot "build\manifold-build-$Arch"
 $cmake = Join-Path $QtRoot "Tools\CMake_64\bin\cmake.exe"
-$mingwBin = Join-Path $QtRoot "Tools\mingw810_$Arch\bin"
+# Pick the newest Qt-bundled MinGW for this arch (mingw810 for Qt 5, mingw1120/mingw1310 for Qt 6).
+$mingwDir = Get-ChildItem (Join-Path $QtRoot "Tools") -Directory -Filter "mingw*_$Arch" -ErrorAction SilentlyContinue |
+    Sort-Object { [int]($_.Name -replace '^mingw(\d+)_.*$', '$1') } -Descending |
+    Select-Object -First 1
+if (!$mingwDir) { throw "No MinGW toolchain found under $(Join-Path $QtRoot 'Tools') for $Arch-bit" }
+$mingwBin = Join-Path $mingwDir.FullName "bin"
 $compiler = Join-Path $mingwBin "g++.exe"
 $make = Join-Path $mingwBin "mingw32-make.exe"
 

@@ -97,7 +97,7 @@ void AnimatedTitleBar::paintEvent(QPaintEvent *)
     p.drawLine(QPoint(0, height() - 1), QPoint(width(), height() - 1));
 }
 
-void AnimatedTitleBar::enterEvent(QEvent *)
+void AnimatedTitleBar::enterEvent(QEnterEvent *)
 {
     m_currentColor = m_pulseColor;
     update();
@@ -113,7 +113,7 @@ void AnimatedTitleBar::mousePressEvent(QMouseEvent *event)
 {
     if (event->button() == Qt::LeftButton) {
         m_dragging   = true;
-        m_dragOffset = event->globalPos() - window()->frameGeometry().topLeft();
+        m_dragOffset = event->globalPosition().toPoint() - window()->frameGeometry().topLeft();
         event->accept();
         return;
     }
@@ -124,7 +124,7 @@ void AnimatedTitleBar::mouseMoveEvent(QMouseEvent *event)
 {
     if (m_dragging && (event->buttons() & Qt::LeftButton)) {
         if (QWidget *w = window(); w && !w->isMaximized())
-            w->move(event->globalPos() - m_dragOffset);
+            w->move(event->globalPosition().toPoint() - m_dragOffset);
         event->accept();
         return;
     }

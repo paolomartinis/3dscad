@@ -1,4 +1,4 @@
-QT += core gui widgets opengl concurrent testlib
+QT += core gui widgets opengl openglwidgets concurrent testlib
 
 TARGET   = testrunner
 TEMPLATE = app

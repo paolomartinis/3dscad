@@ -1,4 +1,4 @@
-QT += core gui widgets opengl concurrent
+QT += core gui widgets opengl openglwidgets concurrent
 
 TARGET   = treedebug
 TEMPLATE = app

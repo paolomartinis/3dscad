@@ -176,7 +176,7 @@ void SceneTreeInlineTextInput::focusOutEvent(QFocusEvent *event)
 
 void SceneTreeInlineTextInput::mousePressEvent(QMouseEvent *event)
 {
-    setCursorFromX(event->pos().x());
+    setCursorFromX(event->position().toPoint().x());
     clearSelection();
     update();
     event->accept();

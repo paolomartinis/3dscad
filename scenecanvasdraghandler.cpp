@@ -39,7 +39,7 @@ bool SceneCanvasDragHandler::handleMousePress(QMouseEvent *event)
     if (event->button() != Qt::LeftButton)
         return false;
 
-    const QPointF scenePos = m_widget->mapToScene(event->pos());
+    const QPointF scenePos = m_widget->mapToScene(event->position().toPoint());
 
     int groupId = 0;
     if (groupCollapseControlAt(scenePos, &groupId)) {
@@ -85,7 +85,7 @@ bool SceneCanvasDragHandler::handleMouseMove(QMouseEvent *event)
     if (!m_canvasDragPending && !m_canvasDragActive)
         return false;
 
-    const QPointF scenePosition = m_widget->mapToScene(event->pos());
+    const QPointF scenePosition = m_widget->mapToScene(event->position().toPoint());
     const QPointF delta = scenePosition - m_canvasDragPressScene;
     const qreal dist = QLineF(QPointF(), delta).length();
 

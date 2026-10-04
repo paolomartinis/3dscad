@@ -21,3 +21,4 @@ qrc_*.cpp
 debug/
 release/
 temp/
+build-*/

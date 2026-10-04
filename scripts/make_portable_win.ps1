@@ -34,8 +34,14 @@ function Fail([string]$msg)       { Write-Host "ERROR: $msg" -ForegroundColor Re
 
 # ---- paths -------------------------------------------------------------------
 $repoRoot  = Split-Path -Parent $PSScriptRoot
-$qtRoot    = "C:\Qt\5.15.2\mingw81_$Arch"
-$mingwBin  = "C:\Qt\Tools\mingw810_$Arch\bin"
+# Newest installed Qt 6 MinGW kit and the newest bundled MinGW toolchain.
+$qtRoot    = Get-ChildItem "C:\Qt" -Directory -Filter "6.*" -ErrorAction SilentlyContinue |
+             Sort-Object { [version]$_.Name } -Descending |
+             ForEach-Object { Join-Path $_.FullName "mingw_$Arch" } |
+             Where-Object { Test-Path $_ } | Select-Object -First 1
+$mingwBin  = Get-ChildItem "C:\Qt\Tools" -Directory -Filter "mingw*_$Arch" -ErrorAction SilentlyContinue |
+             Sort-Object { [int]($_.Name -replace '^mingw(\d+)_.*$', '$1') } -Descending |
+             ForEach-Object { Join-Path $_.FullName "bin" } | Select-Object -First 1
 # Find 7-Zip in either Program Files location
 $sevenDir = @("C:\Program Files\7-Zip", "C:\Program Files (x86)\7-Zip") |
             Where-Object { Test-Path (Join-Path $_ "7z.exe") } |

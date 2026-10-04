@@ -24,7 +24,7 @@ public:
     explicit MainWindow(QWidget *parent = nullptr);
 
 protected:
-    bool nativeEvent(const QByteArray &eventType, void *message, long *result) override;
+    bool nativeEvent(const QByteArray &eventType, void *message, qintptr *result) override;
 
 private slots:
     void addCube();

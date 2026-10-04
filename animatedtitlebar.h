@@ -9,6 +9,7 @@
 
 class QLabel;
 class QToolButton;
+class QEnterEvent;
 
 // Frameless-window title bar with hover feedback, drag-to-move,
 // and minimize / maximize / close buttons.
@@ -22,7 +23,7 @@ public:
 
 protected:
     void paintEvent(QPaintEvent *) override;
-    void enterEvent(QEvent *) override;
+    void enterEvent(QEnterEvent *) override;
     void leaveEvent(QEvent *) override;
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;

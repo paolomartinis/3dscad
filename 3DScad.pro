@@ -1,5 +1,5 @@
 
-QT += core gui widgets opengl concurrent
+QT += core gui widgets opengl openglwidgets concurrent
 
 CONFIG += c++17
 

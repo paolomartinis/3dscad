@@ -521,6 +521,7 @@ bool buildManifoldCsgMesh(const SceneDocument &scene, SceneMesh *mesh, QString *
 #endif
 }
 
+#ifdef HAVE_MANIFOLD_CSG
 // Finds the path from root to the node with targetId. Returns true if found.
 static bool findNodePath(const SceneDocument::TreeNode &current,
                           int targetId,
@@ -587,6 +588,8 @@ static Manifold evaluateNodeById(int targetId,
 
     return result;
 }
+
+#endif
 
 bool buildManifoldNodeMesh(const SceneDocument::TreeNode &node,
                            const SceneDocument &scene,

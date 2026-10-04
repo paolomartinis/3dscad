@@ -4,6 +4,7 @@
 #include "../../scenetreelayout.h"
 
 #include <QAction>
+#include <QEnterEvent>
 #include <QActionGroup>
 #include <QApplication>
 #include <QHBoxLayout>
@@ -223,12 +224,12 @@ protected:
         p.setPen(QPen(line, 1));
         p.drawLine(QPoint(0, height()-1), QPoint(width(), height()-1));
     }
-    void enterEvent(QEvent *) override { m_pulse->start(); }
+    void enterEvent(QEnterEvent *) override { m_pulse->start(); }
     void leaveEvent(QEvent *) override { m_pulse->stop(); m_currentColor = m_baseColor; update(); }
     void mousePressEvent(QMouseEvent *e) override {
         if (e->button() == Qt::LeftButton) {
             m_dragging = true;
-            m_dragOffset = e->globalPos() - window()->frameGeometry().topLeft();
+            m_dragOffset = e->globalPosition().toPoint() - window()->frameGeometry().topLeft();
             e->accept(); return;
         }
         QWidget::mousePressEvent(e);
@@ -236,7 +237,7 @@ protected:
     void mouseMoveEvent(QMouseEvent *e) override {
         if (m_dragging && (e->buttons() & Qt::LeftButton)) {
             QWidget *w = window();
-            if (w && !w->isMaximized()) w->move(e->globalPos() - m_dragOffset);
+            if (w && !w->isMaximized()) w->move(e->globalPosition().toPoint() - m_dragOffset);
             e->accept(); return;
         }
         QWidget::mouseMoveEvent(e);
@@ -280,7 +281,7 @@ protected:
     void mouseMoveEvent(QMouseEvent *event) override
     {
         if (onMouseMoved)
-            onMouseMoved(event->pos(), mapToScene(event->pos()));
+            onMouseMoved(event->position().toPoint(), mapToScene(event->position().toPoint()));
         SceneTreeGraphicsWidget::mouseMoveEvent(event);
     }
 };

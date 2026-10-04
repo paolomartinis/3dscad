@@ -1024,7 +1024,7 @@ bool ViewportWidget::isRotationDragMode(DragMode dragMode) const
 
 void ViewportWidget::mousePressEvent(QMouseEvent *event)
 {
-    m_lastMousePosition = event->pos();
+    m_lastMousePosition = event->position().toPoint();
     m_emptyClickCandidate = false;
 
     if (event->button() == Qt::RightButton) {
@@ -1036,7 +1036,7 @@ void ViewportWidget::mousePressEvent(QMouseEvent *event)
 
     if (event->button() == Qt::LeftButton) {
         int breadcrumbNodeId = 0;
-        if (m_navigationOverlayEnabled && pickBreadcrumbNode(event->pos(), &breadcrumbNodeId)) {
+        if (m_navigationOverlayEnabled && pickBreadcrumbNode(event->position().toPoint(), &breadcrumbNodeId)) {
             emit treeNodeClicked(breadcrumbNodeId);
             event->accept();
             return;
@@ -1044,11 +1044,11 @@ void ViewportWidget::mousePressEvent(QMouseEvent *event)
 
         ViewportAxisGizmo gizmo;
         DragMode pickedPolyAxis = NoDrag;
-        if (gizmo.pickPolyhedronSelectionAxis(event->pos(), &pickedPolyAxis, *this)) {
+        if (gizmo.pickPolyhedronSelectionAxis(event->position().toPoint(), &pickedPolyAxis, *this)) {
             m_draggingPolyhedronElements = true;
             m_dragPolyhedronElementNodeIds = m_selectedPolyhedronElementNodeIds;
             m_dragMode = pickedPolyAxis;
-            m_dragStartMousePosition = event->pos();
+            m_dragStartMousePosition = event->position().toPoint();
             m_lastDragDelta = QVector3D();
             emit polyhedronElementsDragStarted(m_dragPolyhedronElementNodeIds);
             event->accept();
@@ -1056,14 +1056,14 @@ void ViewportWidget::mousePressEvent(QMouseEvent *event)
         }
 
         DragMode pickedAxis = NoDrag;
-        if (gizmo.pickSelectedTransformAxis(event->pos(), &pickedAxis, *this)) {
+        if (gizmo.pickSelectedTransformAxis(event->position().toPoint(), &pickedAxis, *this)) {
             m_dragMode = pickedAxis;
-            m_dragStartMousePosition = event->pos();
+            m_dragStartMousePosition = event->position().toPoint();
             m_lastDragDelta = QVector3D();
             m_lastRotationDelta = QVector3D();
 
             const QPointF screenOrigin = m_camera.project(selectedTransformOrigin(), size()).point;
-            QVector2D radiusVector(QPointF(event->pos()) - screenOrigin);
+            QVector2D radiusVector(QPointF(event->position().toPoint()) - screenOrigin);
             m_rotationDragScreenTangent = QVector2D(-radiusVector.y(), radiusVector.x());
 
             if (m_selectedGroupId > 0) {
@@ -1099,7 +1099,7 @@ void ViewportWidget::mousePressEvent(QMouseEvent *event)
             for (const auto &edge : meshEdges(item.mesh)) {
                 const QPointF a = m_camera.project(edge.first, size()).point;
                 const QPointF b = m_camera.project(edge.second, size()).point;
-                const float distance = distanceToSegment(event->pos(), a, b);
+                const float distance = distanceToSegment(event->position().toPoint(), a, b);
 
                 if (distance < bestDistance) {
                     bestDistance = distance;
@@ -1117,11 +1117,11 @@ void ViewportWidget::mousePressEvent(QMouseEvent *event)
     int shapeIndex = -1;
     if (event->button() == Qt::LeftButton
         && m_pickBufferSize == size()
-        && event->pos().x() >= 0
-        && event->pos().x() < m_pickBufferSize.width()
-        && event->pos().y() >= 0
-        && event->pos().y() < m_pickBufferSize.height()) {
-        const int bufferIndex = event->pos().y() * m_pickBufferSize.width() + event->pos().x();
+        && event->position().toPoint().x() >= 0
+        && event->position().toPoint().x() < m_pickBufferSize.width()
+        && event->position().toPoint().y() >= 0
+        && event->position().toPoint().y() < m_pickBufferSize.height()) {
+        const int bufferIndex = event->position().toPoint().y() * m_pickBufferSize.width() + event->position().toPoint().x();
 
         if (bufferIndex >= 0 && bufferIndex < m_pickBuffer.size()) {
             shapeIndex = m_pickBuffer[bufferIndex];
@@ -1131,7 +1131,7 @@ void ViewportWidget::mousePressEvent(QMouseEvent *event)
     if (shapeIndex < 0) {
         if (event->button() == Qt::LeftButton) {
             m_emptyClickCandidate = true;
-            m_emptyClickStartPosition = event->pos();
+            m_emptyClickStartPosition = event->position().toPoint();
         }
         return;
     }
@@ -1142,12 +1142,12 @@ void ViewportWidget::mousePressEvent(QMouseEvent *event)
 void ViewportWidget::mouseMoveEvent(QMouseEvent *event)
 {
     if (m_panningViewport && (event->buttons() & Qt::RightButton)) {
-        const QPoint delta = event->pos() - m_lastMousePosition;
+        const QPoint delta = event->position().toPoint() - m_lastMousePosition;
         const float worldUnitsPerPixel = m_camera.distance / 420.0f;
         const QVector3D right = m_camera.rightVector();
         const QVector3D up = m_camera.upVector();
         m_camera.target += (-right * delta.x() + up * delta.y()) * worldUnitsPerPixel;
-        m_lastMousePosition = event->pos();
+        m_lastMousePosition = event->position().toPoint();
         update();
         event->accept();
         return;
@@ -1155,24 +1155,24 @@ void ViewportWidget::mouseMoveEvent(QMouseEvent *event)
 
     if (m_draggingPolyhedronElements && (event->buttons() & Qt::LeftButton)) {
         ViewportAxisGizmo gizmo;
-        const QVector3D localDelta = gizmo.polyhedronSelectionLocalDeltaForMousePosition(event->pos(), *this);
+        const QVector3D localDelta = gizmo.polyhedronSelectionLocalDeltaForMousePosition(event->position().toPoint(), *this);
         if ((localDelta - m_lastDragDelta).lengthSquared() < ViewportConstants::kEpsilon) {
-            m_lastMousePosition = event->pos();
+            m_lastMousePosition = event->position().toPoint();
             return;
         }
 
         m_lastDragDelta = localDelta;
         emit polyhedronElementsDragged(localDelta);
-        m_lastMousePosition = event->pos();
+        m_lastMousePosition = event->position().toPoint();
         return;
     }
 
     if ((m_draggingShape || m_draggingGroup) && (event->buttons() & Qt::LeftButton)) {
         if (isRotationDragMode(m_dragMode)) {
-            const QVector3D rotationDelta = rotationDeltaForMousePosition(event->pos());
+            const QVector3D rotationDelta = rotationDeltaForMousePosition(event->position().toPoint());
 
             if ((rotationDelta - m_lastRotationDelta).lengthSquared() < ViewportConstants::kEpsilon) {
-                m_lastMousePosition = event->pos();
+                m_lastMousePosition = event->position().toPoint();
                 return;
             }
 
@@ -1181,14 +1181,14 @@ void ViewportWidget::mouseMoveEvent(QMouseEvent *event)
                 emit groupRotated(m_dragGroupId, rotationDelta);
             else
                 emit shapeRotated(m_dragShapeIndex, rotationDelta);
-            m_lastMousePosition = event->pos();
+            m_lastMousePosition = event->position().toPoint();
             return;
         }
 
-        const QVector3D worldDelta = dragDeltaForMousePosition(event->pos());
+        const QVector3D worldDelta = dragDeltaForMousePosition(event->position().toPoint());
 
         if ((worldDelta - m_lastDragDelta).lengthSquared() < ViewportConstants::kEpsilon) {
-            m_lastMousePosition = event->pos();
+            m_lastMousePosition = event->position().toPoint();
             return;
         }
 
@@ -1197,15 +1197,15 @@ void ViewportWidget::mouseMoveEvent(QMouseEvent *event)
             emit groupDragged(m_dragGroupId, worldDelta);
         else
             emit shapeDragged(m_dragShapeIndex, worldDelta);
-        m_lastMousePosition = event->pos();
+        m_lastMousePosition = event->position().toPoint();
         return;
     }
 
     if (!(event->buttons() & Qt::LeftButton)) {
         ViewportAxisGizmo gizmo;
         DragMode ignored = NoDrag;
-        const bool hovered = gizmo.hitTestPolyhedronSelection(event->pos(), *this)
-                             || gizmo.pickPolyhedronSelectionAxis(event->pos(), &ignored, *this);
+        const bool hovered = gizmo.hitTestPolyhedronSelection(event->position().toPoint(), *this)
+                             || gizmo.pickPolyhedronSelectionAxis(event->position().toPoint(), &ignored, *this);
         if (m_polyhedronSelectionToolHovered != hovered) {
             m_polyhedronSelectionToolHovered = hovered;
             setCursor(hovered ? Qt::SizeAllCursor : Qt::ArrowCursor);
@@ -1215,17 +1215,17 @@ void ViewportWidget::mouseMoveEvent(QMouseEvent *event)
 
     if (event->buttons() & Qt::LeftButton) {
         if (m_emptyClickCandidate
-            && (event->pos() - m_emptyClickStartPosition).manhattanLength() > 3) {
+            && (event->position().toPoint() - m_emptyClickStartPosition).manhattanLength() > 3) {
             m_emptyClickCandidate = false;
         }
 
-        const QPoint delta = event->pos() - m_lastMousePosition;
+        const QPoint delta = event->position().toPoint() - m_lastMousePosition;
         m_camera.yaw = normalizedDegrees(m_camera.yaw - delta.x() * 0.45f);
         m_camera.pitch = normalizedDegrees(m_camera.pitch + delta.y() * 0.35f);
         update();
     }
 
-    m_lastMousePosition = event->pos();
+    m_lastMousePosition = event->position().toPoint();
 }
 
 void ViewportWidget::mouseReleaseEvent(QMouseEvent *event)
@@ -1280,7 +1280,7 @@ void ViewportWidget::mouseReleaseEvent(QMouseEvent *event)
     }
 
     if (event->button() == Qt::LeftButton && m_emptyClickCandidate) {
-        const bool clickedWithoutDrag = (event->pos() - m_emptyClickStartPosition).manhattanLength() <= 3;
+        const bool clickedWithoutDrag = (event->position().toPoint() - m_emptyClickStartPosition).manhattanLength() <= 3;
         m_emptyClickCandidate = false;
         if (clickedWithoutDrag)
             emit emptyClicked();
