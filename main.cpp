@@ -15,5 +15,11 @@ int main(int argc, char *argv[])
 
     w.resize(1200, 800);
     w.show();
+
+    // A .scad path on the command line (also what Windows passes when the
+    // file type is associated with 3DScad.exe) opens as the current document.
+    const QStringList args = QCoreApplication::arguments();
+    if (args.size() > 1)
+        w.openScadFile(args.at(1));
     return a.exec();
 }

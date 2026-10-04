@@ -15,16 +15,21 @@
 #include <QActionGroup>
 #include <QApplication>
 #include <QClipboard>
+#include <QCloseEvent>
 #include <QCoreApplication>
 #include <QDir>
 #include <QDockWidget>
 #include <QFile>
+#include <QFileDialog>
+#include <QFileInfo>
 #include <QLabel>
 #include <QMenu>
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QPixmap>
+#include <QSaveFile>
 #include <QSettings>
+#include <QUndoStack>
 #include <QVBoxLayout>
 
 #ifdef Q_OS_WIN
@@ -90,6 +95,9 @@ MainWindow::MainWindow(QWidget *parent)
 
     applyTheme(initialTheme);
     buildUi();
+    connect(m_controller->undoStack(), &QUndoStack::cleanChanged,
+            this, &MainWindow::updateWindowTitle);
+    updateWindowTitle();
     refreshOpenScadCode();
     refreshCsgStatus();
     refreshProperties();
@@ -135,6 +143,13 @@ void MainWindow::buildUi()
 
     QMenuBar *appMenuBar = menuBar();
     auto *fileMenu        = appMenuBar->addMenu("File");
+    fileMenu->addAction("New", QKeySequence::New, this, &MainWindow::newFile);
+    fileMenu->addAction("Open...", QKeySequence::Open, this, &MainWindow::openFile);
+    m_recentFilesMenu = fileMenu->addMenu("Open Recent");
+    rebuildRecentFilesMenu();
+    fileMenu->addAction("Save", QKeySequence::Save, this, &MainWindow::saveFile);
+    fileMenu->addAction("Save As...", QKeySequence::SaveAs, this, &MainWindow::saveFileAs);
+    fileMenu->addSeparator();
     auto *examplesMenu    = fileMenu->addMenu("Samples");
     m_exampleBrowser      = new ExampleBrowserMenu(examplesMenu, "sample_codes", this);
     connect(m_exampleBrowser, &ExampleBrowserMenu::exampleSelected,
@@ -668,14 +683,27 @@ void MainWindow::highlightOpenScadSelection()
 
 void MainWindow::loadExample(const QString &filePath)
 {
+    if (!maybeSave()) return;
+    // Examples open as untitled documents so Save never overwrites the sample.
+    if (!loadScadIntoEditor(filePath, "Open Example")) return;
+    m_currentFilePath.clear();
+    m_controller->undoStack()->setClean();
+    updateWindowTitle();
+}
+
+// ── File handling ─────────────────────────────────────────────────────────────
+
+// Loads a .scad file into the code editor and applies it to the scene.
+// A parse error keeps the original text in the editor (so saving it loses nothing).
+bool MainWindow::loadScadIntoEditor(const QString &filePath, const QString &dialogTitle)
+{
     QFile file(filePath);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        QMessageBox::warning(this, "Open Example",
-                             QString("Cannot open:\n%1").arg(filePath));
-        return;
+        QMessageBox::warning(this, dialogTitle,
+                             QString("Cannot open:\n%1").arg(QDir::toNativeSeparators(filePath)));
+        return false;
     }
     m_codeEditorPanel->setCode(QString::fromUtf8(file.readAll()));
-    // Apply the loaded code immediately.
     QString errorMsg;
     int     errorLine = -1;
     if (!m_controller->applyCode(m_codeEditorPanel->code(), &errorMsg, &errorLine)) {
@@ -684,5 +712,145 @@ void MainWindow::loadExample(const QString &filePath)
         m_codeEditorPanel->clearParseError();
         if (m_sceneTreeGraphics)
             m_sceneTreeGraphics->compactRootBlocksAndFit();
+    }
+    return true;
+}
+
+bool MainWindow::openScadFile(const QString &filePath)
+{
+    if (!loadScadIntoEditor(filePath, "Open")) return false;
+    m_currentFilePath = QFileInfo(filePath).absoluteFilePath();
+    m_backupWritten = false;
+    m_controller->undoStack()->setClean();
+    addRecentFile(m_currentFilePath);
+    updateWindowTitle();
+    return true;
+}
+
+void MainWindow::newFile()
+{
+    if (!maybeSave()) return;
+    m_codeEditorPanel->setCode(QString());
+    m_controller->applyCode(QString(), nullptr, nullptr);
+    m_codeEditorPanel->clearParseError();
+    m_currentFilePath.clear();
+    m_controller->undoStack()->clear();
+    updateWindowTitle();
+}
+
+void MainWindow::openFile()
+{
+    if (!maybeSave()) return;
+    const QString startDir = m_settings->value(QStringLiteral("files/lastDir")).toString();
+    const QString path = QFileDialog::getOpenFileName(this, "Open OpenSCAD File", startDir,
+                                                      "OpenSCAD files (*.scad);;All files (*)");
+    if (path.isEmpty()) return;
+    m_settings->setValue(QStringLiteral("files/lastDir"), QFileInfo(path).absolutePath());
+    openScadFile(path);
+}
+
+bool MainWindow::saveFile()
+{
+    if (m_currentFilePath.isEmpty())
+        return saveFileAs();
+    return writeScadFile(m_currentFilePath);
+}
+
+bool MainWindow::saveFileAs()
+{
+    QString startPath = m_currentFilePath;
+    if (startPath.isEmpty())
+        startPath = m_settings->value(QStringLiteral("files/lastDir")).toString();
+    const QString path = QFileDialog::getSaveFileName(this, "Save OpenSCAD File", startPath,
+                                                      "OpenSCAD files (*.scad)");
+    if (path.isEmpty()) return false;
+    m_settings->setValue(QStringLiteral("files/lastDir"), QFileInfo(path).absolutePath());
+    if (QFileInfo(path).absoluteFilePath() != m_currentFilePath)
+        m_backupWritten = false;
+    if (!writeScadFile(path)) return false;
+    m_currentFilePath = QFileInfo(path).absoluteFilePath();
+    addRecentFile(m_currentFilePath);
+    updateWindowTitle();
+    return true;
+}
+
+// Saves the editor code. The first overwrite of an existing file in a session
+// keeps a .bak copy, because the generated code drops comments, formatting and
+// any OpenSCAD syntax outside the supported subset.
+bool MainWindow::writeScadFile(const QString &filePath)
+{
+    if (!m_backupWritten && QFile::exists(filePath)) {
+        const QString backupPath = filePath + QStringLiteral(".bak");
+        QFile::remove(backupPath);
+        QFile::copy(filePath, backupPath);
+        m_backupWritten = true;
+    }
+
+    QSaveFile file(filePath);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)
+        || file.write(m_codeEditorPanel->code().toUtf8()) < 0
+        || !file.commit()) {
+        QMessageBox::warning(this, "Save",
+                             QString("Cannot save:\n%1\n\n%2")
+                                 .arg(QDir::toNativeSeparators(filePath), file.errorString()));
+        return false;
+    }
+    m_controller->undoStack()->setClean();
+    updateWindowTitle();
+    return true;
+}
+
+bool MainWindow::maybeSave()
+{
+    if (m_controller->undoStack()->isClean())
+        return true;
+    const QString name = m_currentFilePath.isEmpty()
+        ? QStringLiteral("Untitled") : QFileInfo(m_currentFilePath).fileName();
+    const auto answer = QMessageBox::question(
+        this, "Unsaved changes", QString("Save changes to %1?").arg(name),
+        QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel, QMessageBox::Save);
+    if (answer == QMessageBox::Save) return saveFile();
+    return answer == QMessageBox::Discard;
+}
+
+void MainWindow::closeEvent(QCloseEvent *event)
+{
+    if (maybeSave()) event->accept();
+    else             event->ignore();
+}
+
+void MainWindow::updateWindowTitle()
+{
+    const QString name = m_currentFilePath.isEmpty()
+        ? QStringLiteral("Untitled") : QFileInfo(m_currentFilePath).fileName();
+    const QString dirty = m_controller->undoStack()->isClean() ? QString() : QStringLiteral("*");
+    setWindowTitle(QString("%1%2 - 3DScad").arg(name, dirty));
+    if (m_titleBar) m_titleBar->setTitle(windowTitle());
+}
+
+void MainWindow::addRecentFile(const QString &filePath)
+{
+    QStringList files = m_settings->value(QStringLiteral("files/recent")).toStringList();
+    files.removeAll(filePath);
+    files.prepend(filePath);
+    while (files.size() > 10) files.removeLast();
+    m_settings->setValue(QStringLiteral("files/recent"), files);
+    rebuildRecentFilesMenu();
+}
+
+void MainWindow::rebuildRecentFilesMenu()
+{
+    if (!m_recentFilesMenu) return;
+    m_recentFilesMenu->clear();
+    const QStringList files = m_settings->value(QStringLiteral("files/recent")).toStringList();
+    if (files.isEmpty()) {
+        m_recentFilesMenu->addAction("(none)")->setEnabled(false);
+        return;
+    }
+    for (const QString &path : files) {
+        QAction *action = m_recentFilesMenu->addAction(QDir::toNativeSeparators(path));
+        connect(action, &QAction::triggered, this, [this, path]() {
+            if (maybeSave()) openScadFile(path);
+        });
     }
 }

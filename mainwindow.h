@@ -7,6 +7,7 @@
 #include <QMainWindow>
 
 class QByteArray;
+class QCloseEvent;
 class QLabel;
 class QMenu;
 class QSettings;
@@ -23,8 +24,13 @@ class MainWindow : public QMainWindow
 public:
     explicit MainWindow(QWidget *parent = nullptr);
 
+    // Opens a .scad file as the current document (used for File > Open and
+    // for a path passed on the command line / via file association).
+    bool openScadFile(const QString &filePath);
+
 protected:
     bool nativeEvent(const QByteArray &eventType, void *message, qintptr *result) override;
+    void closeEvent(QCloseEvent *event) override;
 
 private slots:
     void addCube();
@@ -35,9 +41,19 @@ private slots:
     void addDifferenceGroup();
     void addIntersectionGroup();
     void loadExample(const QString &filePath);
+    void newFile();
+    void openFile();
+    bool saveFile();
+    bool saveFileAs();
 
 private:
     void buildUi();
+    bool loadScadIntoEditor(const QString &filePath, const QString &dialogTitle);
+    bool writeScadFile(const QString &filePath);
+    bool maybeSave();
+    void updateWindowTitle();
+    void rebuildRecentFilesMenu();
+    void addRecentFile(const QString &filePath);
     void refreshShapeList();
     void refreshProperties();
     void refreshOpenScadCode();
@@ -65,6 +81,9 @@ private:
     QMenu            *m_savedWindowThemeMenu = nullptr;
     QMenu            *m_savedTreeThemeMenu = nullptr;
     QMenu            *m_savedViewportThemeMenu = nullptr;
+    QMenu            *m_recentFilesMenu = nullptr;
+    QString           m_currentFilePath;
+    bool              m_backupWritten = false;
 
     ExampleBrowserMenu      *m_exampleBrowser          = nullptr;
     ExampleBrowserMenu      *m_exampleBrowserTutorials = nullptr;
